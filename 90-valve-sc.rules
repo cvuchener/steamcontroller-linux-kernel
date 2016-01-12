@@ -1,0 +1,8 @@
+ATTRS{idVendor}=="28de", ATTRS{idProduct}=="1102", GOTO="valve_sc"
+ATTRS{idVendor}=="28de", ATTRS{idProduct}=="1142", GOTO="valve_sc"
+GOTO="valve_sc_end"
+
+LABEL="valve_sc"
+ACTION=="add", SUBSYSTEM=="hid",RUN+="/bin/sh -c 'echo $kernel > /sys/bus/hid/drivers/hid-generic/unbind; echo $kernel > /sys/bus/hid/drivers/valve-sc/bind'"
+
+LABEL="valve_sc_end"
