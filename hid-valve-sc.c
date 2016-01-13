@@ -14,6 +14,7 @@
 #include <linux/hid.h>
 #include <linux/module.h>
 #include <linux/string.h>
+#include <linux/delay.h>
 
 #include "hid-ids.h"
 
@@ -76,6 +77,7 @@ static const u8 raw_report_desc[RAW_REPORT_DESC_SIZE] = {
 
 #define SC_FEATURE_DISABLE_AUTO_BUTTONS	0x81
 #define SC_FEATURE_SETTINGS	0x87
+#define SC_FEATURE_GET_SERIAL	0xae
 #define SC_FEATURE_GET_CONNECTION_STATE	0xb4
 
 #define SC_SETTINGS_AUTOMOUSE	0x08
@@ -129,6 +131,8 @@ static int valve_sc_send_request(struct valve_sc_device *sc, u8 report_id,
 
 	if (!answer)
 		return 0;
+
+	msleep(50);
 
 	ret = hid_hw_raw_request(hdev, 0, report, sizeof(report),
 				 HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
@@ -444,9 +448,27 @@ static int valve_sc_init_device(struct valve_sc_device *sc)
 	struct hid_device *hdev = sc->hdev;
 	struct input_dev *input;
 	u8 params[6];
+	u8 serial[64];
+	int serial_len;
+	char *name;
+	int name_sz;
 
 	hid_info(hdev, "Initializing device.\n");
 
+	/* Retrieve controller serial */
+	serial[0] = 1;
+	ret = valve_sc_send_request(sc, SC_FEATURE_GET_SERIAL,
+				    serial, 21,
+				    serial, &serial_len);
+	if (ret < 0 || serial_len < 1 || serial_len > 62) {
+		hid_warn(hdev, "Error while get controller serial: %d\n", -ret);
+		serial[1] = '\0';
+	}
+	else {
+		serial[serial_len] = '\0';
+	}
+
+	/* Set mouse mode for right pad */
 	params[0] = SC_SETTINGS_AUTOMOUSE;
 	if (sc->automouse)
 		params[1] = SC_SETTINGS_AUTOMOUSE_ON;
@@ -462,6 +484,7 @@ static int valve_sc_init_device(struct valve_sc_device *sc)
 	if (ret < 0)
 		hid_warn(hdev, "Error while disabling mouse: %d\n", -ret);
 
+	/* Disable buttons acting as keys */
 	ret = valve_sc_send_request(sc, SC_FEATURE_DISABLE_AUTO_BUTTONS,
 				    NULL, 0,
 				    NULL, NULL);
@@ -482,6 +505,10 @@ static int valve_sc_init_device(struct valve_sc_device *sc)
 	input->id.vendor = hdev->vendor;
 	input->id.product = hdev->product;
 	input->id.version = hdev->version;
+	name_sz = strlen(hdev->name) + strlen(&serial[1]) + 4;
+	name = devm_kzalloc(&input->dev, name_sz, GFP_KERNEL);
+	snprintf(name, name_sz, "%s (%s)", hdev->name, &serial[1]);
+	input->name = name;
 
 	valve_sc_setup_input(input);
 
@@ -569,6 +596,8 @@ static int valve_sc_probe(struct hid_device *hdev, const struct hid_device_id *i
 {
 	int ret;
 	struct valve_sc_device *sc;
+	char answer[64];
+	int answer_len;
 
 	sc = devm_kzalloc(&hdev->dev, sizeof (struct valve_sc_device),
 			       GFP_KERNEL);
@@ -585,8 +614,6 @@ static int valve_sc_probe(struct hid_device *hdev, const struct hid_device_id *i
 
 	INIT_WORK(&sc->connect_work, valve_sc_connect_work);
 	INIT_WORK(&sc->disconnect_work, valve_sc_disconnect_work);
-
-	//hdev->quirks |= HID_QUIRK_ALWAYS_POLL;
 
 	ret = hid_parse(hdev);
 	if (ret != 0) {
@@ -622,7 +649,7 @@ static int valve_sc_probe(struct hid_device *hdev, const struct hid_device_id *i
 			sc->connected = false;
 			ret = valve_sc_send_request(sc, SC_FEATURE_GET_CONNECTION_STATE,
 						 NULL, 0,
-						 NULL, NULL);
+						 answer, &answer_len);
 			if (ret < 0)
 				hid_warn(hdev, "Error while getting connection state: %d\n", -ret);
 			break;
