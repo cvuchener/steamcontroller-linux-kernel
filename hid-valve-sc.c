@@ -76,6 +76,7 @@ static const u8 raw_report_desc[RAW_REPORT_DESC_SIZE] = {
 #define BTN_STICK_CLICK	BTN_GAMEPAD+0xf
 
 #define SC_FEATURE_DISABLE_AUTO_BUTTONS	0x81
+#define SC_FEATURE_ENABLE_AUTO_BUTTONS	0x85
 #define SC_FEATURE_SETTINGS	0x87
 #define SC_FEATURE_GET_SERIAL	0xae
 #define SC_FEATURE_GET_CONNECTION_STATE	0xb4
@@ -97,6 +98,7 @@ struct valve_sc_device {
 	struct input_dev *input;
 	bool center_touchpads;
 	bool automouse;
+	bool autobuttons;
 	u8 orientation;
 	struct work_struct connect_work;
 	struct work_struct disconnect_work;
@@ -196,6 +198,46 @@ static ssize_t valve_sc_store_automouse(struct device *dev,
 	return count;
 }
 
+static ssize_t valve_sc_show_autobuttons(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	struct valve_sc_device *sc = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%s\n", sc->autobuttons ? "on" : "off");
+}
+
+static ssize_t valve_sc_store_autobuttons(struct device *dev,
+					  struct device_attribute *attr,
+					  const char *buf, size_t count)
+{
+	int ret;
+	struct valve_sc_device *sc = dev_get_drvdata(dev);
+	struct hid_device *hdev = to_hid_device(dev);
+
+	if (strncmp(buf, "on", 2) == 0)
+		sc->autobuttons = true;
+	else if (strncmp(buf, "off", 3) == 0)
+		sc->autobuttons = false;
+	else
+		return -EINVAL;
+
+	if (sc->connected) {
+		u8 feature;
+		if (sc->autobuttons)
+			feature = SC_FEATURE_ENABLE_AUTO_BUTTONS;
+		else
+			feature = SC_FEATURE_DISABLE_AUTO_BUTTONS;
+
+		ret = valve_sc_send_request(sc, feature,
+					    NULL, 0,
+					    NULL, NULL);
+		if (ret < 0)
+			hid_warn(hdev, "Error while setting autobuttons: %d\n", -ret);
+	}
+	return count;
+}
+
 static ssize_t valve_sc_show_orientation(struct device *dev,
 				         struct device_attribute *attr,
 				         char *buf)
@@ -261,6 +303,8 @@ static ssize_t valve_sc_store_center_touchpads(struct device *dev,
 
 static DEVICE_ATTR(automouse, 0644,
 		   valve_sc_show_automouse, valve_sc_store_automouse);
+static DEVICE_ATTR(autobuttons, 0644,
+		   valve_sc_show_autobuttons, valve_sc_store_autobuttons);
 static DEVICE_ATTR(orientation, 0644,
 		   valve_sc_show_orientation, valve_sc_store_orientation);
 static DEVICE_ATTR(center_touchpads, 0644,
@@ -268,6 +312,7 @@ static DEVICE_ATTR(center_touchpads, 0644,
 
 static struct attribute *valve_sc_attrs[] = {
 	&dev_attr_automouse.attr,
+	&dev_attr_autobuttons.attr,
 	&dev_attr_orientation.attr,
 	&dev_attr_center_touchpads.attr,
 	NULL
@@ -448,6 +493,7 @@ static int valve_sc_init_device(struct valve_sc_device *sc)
 	struct hid_device *hdev = sc->hdev;
 	struct input_dev *input;
 	u8 params[6];
+	u8 feature;
 	u8 serial[64];
 	int serial_len;
 	char *name;
@@ -485,11 +531,16 @@ static int valve_sc_init_device(struct valve_sc_device *sc)
 		hid_warn(hdev, "Error while disabling mouse: %d\n", -ret);
 
 	/* Disable buttons acting as keys */
-	ret = valve_sc_send_request(sc, SC_FEATURE_DISABLE_AUTO_BUTTONS,
+	if (sc->autobuttons)
+		feature = SC_FEATURE_ENABLE_AUTO_BUTTONS;
+	else
+		feature = SC_FEATURE_DISABLE_AUTO_BUTTONS;
+
+	ret = valve_sc_send_request(sc, feature,
 				    NULL, 0,
 				    NULL, NULL);
 	if (ret < 0)
-		hid_warn(hdev, "Error while disabling auto buttons: %d\n", -ret);
+		hid_warn(hdev, "Error while setting auto buttons: %d\n", -ret);
 
 	/* Create input device */
 	input = input_allocate_device();
@@ -609,6 +660,7 @@ static int valve_sc_probe(struct hid_device *hdev, const struct hid_device_id *i
 
 	sc->hdev = hdev;
 	sc->automouse = false;
+	sc->autobuttons = false;
 	sc->orientation = 0;
 	sc->center_touchpads = true;
 

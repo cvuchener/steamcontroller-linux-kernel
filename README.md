@@ -67,6 +67,7 @@ Sysfs attributes
 The driver expose some attributes in the sysfs for each device.
 
  - **automouse**: enable or disable the right pad behaving like a mouse. Accepted values are *on* or *off*.
+ - **autobuttons**: enable or disable the buttons acting as keys or mouse buttons. Accepted values are *on* or *off*.
  - **orientation**: enable or disable orientation sensors (accelerometer and gyroscope). Accepted values are *on* or *off*.
  - **centertouchpads**: enable or disable centering the touch pads when released (for using them as joysticks). Accepted values are *on* or *off*
 
