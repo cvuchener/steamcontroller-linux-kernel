@@ -11,6 +11,8 @@
  * any later version.
  */
 
+#define DEBUG
+
 #include <linux/hid.h>
 #include <linux/module.h>
 #include <linux/string.h>
