@@ -53,6 +53,12 @@ tee /sys/bus/hid/drivers/valve-sc/bind <<< "0003:<vendorid>:<productid>:<devnum>
 For a more permanent installation, install the module with `make install` and add the rules in `90-valve-sc-rules` for automatically rebind any Steam Controller.
 
 
+Installation with DKMS
+----------------------
+
+Copy the files to `/usr/src/hid-valve-sc-0.1/` and run `dkms install hid-valve-sc/0.1`.
+
+
 Testing
 -------
 
