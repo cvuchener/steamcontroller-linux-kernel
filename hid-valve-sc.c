@@ -498,8 +498,8 @@ static int valve_sc_init_device(struct valve_sc_device *sc)
 	u8 feature;
 	u8 serial[64];
 	int serial_len;
-	char *name;
-	int name_sz;
+	char *name, *uniq;
+	int name_sz, uniq_sz;
 
 	hid_info(hdev, "Initializing device.\n");
 
@@ -558,10 +558,15 @@ static int valve_sc_init_device(struct valve_sc_device *sc)
 	input->id.vendor = hdev->vendor;
 	input->id.product = hdev->product;
 	input->id.version = hdev->version;
-	name_sz = strlen(hdev->name) + strlen(&serial[1]) + 4;
+	name_sz = strlen(hdev->name) + 1;
 	name = devm_kzalloc(&input->dev, name_sz, GFP_KERNEL);
-	snprintf(name, name_sz, "%s (%s)", hdev->name, &serial[1]);
+	strncpy(name, hdev->name, name_sz);
 	input->name = name;
+	uniq_sz = serial_len + 1;
+	uniq = devm_kzalloc(&input->dev, uniq_sz, GFP_KERNEL);
+	strncpy(uniq, &serial[1], serial_len);
+	uniq[serial_len] = '\0';
+	input->uniq = uniq;
 
 	valve_sc_setup_input(input);
 
