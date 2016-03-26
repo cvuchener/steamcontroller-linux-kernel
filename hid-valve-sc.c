@@ -375,7 +375,7 @@ static void valve_sc_parse_input_events(struct valve_sc_device *sc,
 	/* Update input state */
 	if (buttons & SC_BTN_TOUCH_LEFT) {
 		input_report_abs(input, ABS_HAT0X, left[0]);
-		input_report_abs(input, ABS_HAT0Y, left[1]);
+		input_report_abs(input, ABS_HAT0Y, -left[1]);
 	}
 	else if (sc->center_touchpads && left[0] == 0 && left[1] == 0) {
 		/* Left touch pad release is not detected if the stick
@@ -387,7 +387,7 @@ static void valve_sc_parse_input_events(struct valve_sc_device *sc,
 
 	if (sc->center_touchpads || buttons & SC_BTN_TOUCH_RIGHT) {
 		input_report_abs(input, ABS_HAT1X, right[0]);
-		input_report_abs(input, ABS_HAT1Y, right[1]);
+		input_report_abs(input, ABS_HAT1Y, -right[1]);
 	}
 
 	input_report_abs(input, ABS_BRAKE, triggers[0]);
@@ -413,7 +413,7 @@ static void valve_sc_parse_input_events(struct valve_sc_device *sc,
 		SC_REPORT_BTN(input, buttons,
 			      SC_BTN_CLICK_LEFT, BTN_STICK_CLICK);
 		input_report_abs(input, ABS_X, left[0]);
-		input_report_abs(input, ABS_Y, left[1]);
+		input_report_abs(input, ABS_Y, -left[1]);
 	}
 	if (buttons & SC_BTN_TOUCH_RIGHT) {
 		SC_REPORT_BTN(input, buttons,
