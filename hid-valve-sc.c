@@ -155,6 +155,10 @@ static int valve_sc_send_request(struct valve_sc_device *sc, u8 report_id,
 	}
 
 	*answer_size = report[2];
+	if (*answer_size > 61) {
+		hid_warn(hdev, "Invalid answer size: %d\n", *answer_size);
+		return -EIO;
+	}
 	memcpy(answer, &report[3], *answer_size);
 	return 0;
 }
