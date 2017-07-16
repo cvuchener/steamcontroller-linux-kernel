@@ -77,6 +77,8 @@ static const u8 raw_report_desc[RAW_REPORT_DESC_SIZE] = {
 
 #define BTN_STICK_CLICK	BTN_GAMEPAD+0xf
 
+#define SC_FEATURE_REPORT_SIZE 65
+
 #define SC_FEATURE_DISABLE_AUTO_BUTTONS	0x81
 #define SC_FEATURE_ENABLE_AUTO_BUTTONS	0x85
 #define SC_FEATURE_SETTINGS	0x87
@@ -112,55 +114,69 @@ static int valve_sc_send_request(struct valve_sc_device *sc, u8 report_id,
 {
 	int ret;
 	struct hid_device *hdev = sc->hdev;
-	u8 report[65];
+	u8 *report;
 
 	if (params_size > 62)
 		return -EINVAL;
+
+	report = kmalloc (SC_FEATURE_REPORT_SIZE, GFP_KERNEL);
+	if (!report)
+		return -ENOMEM;
 
 	report[0] = 0;
 	report[1] = report_id;
 	report[2] = params_size;
 	memcpy(&report[3], params, params_size);
 
-	ret = hid_hw_raw_request(hdev, 0, report, sizeof(report),
+	ret = hid_hw_raw_request(hdev, 0, report, SC_FEATURE_REPORT_SIZE,
 				 HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
 	if (ret < 0) {
 		hid_warn(hdev, "Error sending feature: %d\n", -ret);
-		return ret;
+		goto out;
 	}
-	if (ret != sizeof (report)) {
+	if (ret != SC_FEATURE_REPORT_SIZE) {
 		hid_warn(hdev, "Sent incomplete feature.\n");
-		return -EIO;
+		ret = -EIO;
+		goto out;
 	}
 
-	if (!answer)
-		return 0;
+	if (!answer) {
+		ret = 0;
+		goto out;
+	}
 
 	msleep(50);
 
-	ret = hid_hw_raw_request(hdev, 0, report, sizeof(report),
+	ret = hid_hw_raw_request(hdev, 0, report, SC_FEATURE_REPORT_SIZE,
 				 HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
 	if (ret < 0) {
 		hid_warn(hdev, "Error receiving feature: %d\n", -ret);
-		return ret;
+		goto out;
 	}
-	if (ret != sizeof (report)) {
+	if (ret != SC_FEATURE_REPORT_SIZE) {
 		hid_warn(hdev, "Received incomplete feature.\n");
-		return -EIO;
+		ret = -EIO;
+		goto out;
 	}
 
 	if (report[1] != report_id) {
 		hid_warn(hdev, "Invalid feature id.\n");
-		return -EIO;
+		ret = -EIO;
+		goto out;
 	}
 
 	*answer_size = report[2];
 	if (*answer_size > 61) {
 		hid_warn(hdev, "Invalid answer size: %d\n", *answer_size);
-		return -EIO;
+		ret = -EIO;
+		goto out;
 	}
 	memcpy(answer, &report[3], *answer_size);
-	return 0;
+	ret = 0;
+
+out:
+	kfree (report);
+	return ret;
 }
 
 static ssize_t valve_sc_show_automouse(struct device *dev,
