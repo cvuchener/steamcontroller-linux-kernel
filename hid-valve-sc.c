@@ -530,6 +530,7 @@ static int valve_sc_init_device(struct valve_sc_device *sc)
 				    serial, &serial_len);
 	if (ret < 0 || serial_len < 1 || serial_len > 62) {
 		hid_warn(hdev, "Error while get controller serial: %d\n", -ret);
+		serial_len = 1;
 		serial[1] = '\0';
 	}
 	else {
@@ -582,10 +583,10 @@ static int valve_sc_init_device(struct valve_sc_device *sc)
 	name = devm_kzalloc(&input->dev, name_sz, GFP_KERNEL);
 	strncpy(name, hdev->name, name_sz);
 	input->name = name;
-	uniq_sz = serial_len + 1;
+	uniq_sz = serial_len;
 	uniq = devm_kzalloc(&input->dev, uniq_sz, GFP_KERNEL);
-	strncpy(uniq, &serial[1], serial_len);
-	uniq[serial_len] = '\0';
+	strncpy(uniq, &serial[1], serial_len-1);
+	uniq[serial_len-1] = '\0';
 	input->uniq = uniq;
 
 	valve_sc_setup_input(input);
