@@ -78,7 +78,7 @@ static const u8 raw_report_desc[RAW_REPORT_DESC_SIZE] = {
 #define SC_BTN_TRIGGER_LEFT	0x00000200
 #define SC_BTN_TRIGGER_RIGHT	0x00000100
 
-#define BTN_STICK_CLICK	(BTN_GAMEPAD+0xf)
+#define BTN_LEFTPAD_CLICK	(BTN_GAMEPAD+0xf)
 
 #define SC_FEATURE_REPORT_SIZE 65
 
@@ -356,21 +356,21 @@ static void valve_sc_parse_input_events(struct valve_sc_device *sc,
 		}
 
 		if (sc->center_touchpads || buttons & SC_BTN_TOUCH_RIGHT) {
-			input_report_abs(sc->input, ABS_HAT1X, right[0]);
-			input_report_abs(sc->input, ABS_HAT1Y, -right[1]);
+			input_report_abs(sc->input, ABS_RX, right[0]);
+			input_report_abs(sc->input, ABS_RY, -right[1]);
 		}
 
-		input_report_abs(sc->input, ABS_BRAKE, triggers[0]);
-		input_report_abs(sc->input, ABS_GAS, triggers[1]);
+		input_report_abs(sc->input, ABS_HAT2Y, triggers[0]);
+		input_report_abs(sc->input, ABS_HAT2X, triggers[1]);
 
 		if (buttons & SC_BTN_TOUCH_LEFT) {
 			/* Left events are touchpad events */
 			SC_REPORT_BTN(sc->input, buttons,
-				      SC_BTN_CLICK_LEFT, BTN_THUMBL);
+				      SC_BTN_CLICK_LEFT, BTN_LEFTPAD_CLICK);
 		} else {
 			/* Left events are stick events */
 			SC_REPORT_BTN(sc->input, buttons,
-				      SC_BTN_CLICK_LEFT, BTN_STICK_CLICK);
+				      SC_BTN_CLICK_LEFT, BTN_THUMBL);
 			input_report_abs(sc->input, ABS_X, left[0]);
 			input_report_abs(sc->input, ABS_Y, -left[1]);
 		}
@@ -440,9 +440,9 @@ static int valve_sc_init_input(struct valve_sc_device *sc)
 	set_bit(BTN_TR2, sc->input->keybit);
 	set_bit(BTN_C, sc->input->keybit); /* Left grip */
 	set_bit(BTN_Z, sc->input->keybit); /* Right grip */
-	set_bit(BTN_THUMBL, sc->input->keybit);
+	set_bit(BTN_LEFTPAD_CLICK, sc->input->keybit);
 	set_bit(BTN_THUMBR, sc->input->keybit);
-	set_bit(BTN_STICK_CLICK, sc->input->keybit);
+	set_bit(BTN_THUMBL, sc->input->keybit);
 
 	set_bit(EV_ABS, sc->input->evbit);
 	/* Stick */
@@ -453,17 +453,17 @@ static int valve_sc_init_input(struct valve_sc_device *sc)
 	/* Touchpads */
 	set_bit(ABS_HAT0X, sc->input->absbit);
 	set_bit(ABS_HAT0Y, sc->input->absbit);
-	set_bit(ABS_HAT1X, sc->input->absbit);
-	set_bit(ABS_HAT1Y, sc->input->absbit);
+	set_bit(ABS_RX, sc->input->absbit);
+	set_bit(ABS_RY, sc->input->absbit);
 	input_set_abs_params(sc->input, ABS_HAT0X, -32767, 32767, 500, 1000);
 	input_set_abs_params(sc->input, ABS_HAT0Y, -32767, 32767, 500, 1000);
-	input_set_abs_params(sc->input, ABS_HAT1X, -32767, 32767, 500, 1000);
-	input_set_abs_params(sc->input, ABS_HAT1Y, -32767, 32767, 500, 1000);
+	input_set_abs_params(sc->input, ABS_RX, -32767, 32767, 500, 1000);
+	input_set_abs_params(sc->input, ABS_RY, -32767, 32767, 500, 1000);
 	/* Triggers */
-	set_bit(ABS_GAS, sc->input->absbit);
-	set_bit(ABS_BRAKE, sc->input->absbit);
-	input_set_abs_params(sc->input, ABS_GAS, 0, 255, 2, 1);
-	input_set_abs_params(sc->input, ABS_BRAKE, 0, 255, 2, 1);
+	set_bit(ABS_HAT2X, sc->input->absbit);
+	set_bit(ABS_HAT2Y, sc->input->absbit);
+	input_set_abs_params(sc->input, ABS_HAT2X, 0, 255, 2, 1);
+	input_set_abs_params(sc->input, ABS_HAT2Y, 0, 255, 2, 1);
 
 	ret = input_register_device(sc->input);
 	if (ret != 0) {

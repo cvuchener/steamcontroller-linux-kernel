@@ -20,14 +20,14 @@ Input mappings are:
 | Right Trigger full   | BTN_TR2                |
 | Left Grip            | BTN_C                  |
 | Right Grip           | BTN_Z                  |
-| Left Pad Click       | BTN_THUMBL             |
+| Left Pad Click       | BTN_GAMEPAD+15 (0x13f) |
 | Right Pad Click      | BTN_THUMBR             |
-| Joystick Click       | 0x13f                  |
-| Joystick             | ABS_X ,ABS_Y           |
+| Joystick Click       | BTN_THUMBL             |
+| Joystick             | ABS_X, ABS_Y           |
 | Left Pad             | ABS_HAT0X, ABS_HAT0Y   |
-| Right Pad            | ABS_HAT1X, ABS_HAT1Y   |
-| Left Trigger         | ABS_BRAKE              |
-| Right Trigger        | ABS_GAS                |
+| Right Pad            | ABS_RX, ABS_RY         |
+| Left Trigger         | ABS_HAT2Y              |
+| Right Trigger        | ABS_HAT2X              |
 
 Accelerometer and gyroscope events are sent through a second input device (called "Valve Software Steam Controller Accelerometer") using, respectively, `ABS_X`, `ABS_Y`, `ABS_Z` and `ABS_RX`, `ABS_RY`, `ABS_RZ`. The sensors are only enabled when the input device is opened in order to reduce power consumption.
 
