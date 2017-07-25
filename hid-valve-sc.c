@@ -78,7 +78,7 @@ static const u8 raw_report_desc[RAW_REPORT_DESC_SIZE] = {
 #define SC_BTN_TRIGGER_LEFT	0x00000200
 #define SC_BTN_TRIGGER_RIGHT	0x00000100
 
-#define BTN_STICK_CLICK	BTN_GAMEPAD+0xf
+#define BTN_STICK_CLICK	(BTN_GAMEPAD+0xf)
 
 #define SC_FEATURE_REPORT_SIZE 65
 
@@ -126,7 +126,7 @@ static int valve_sc_send_request(struct valve_sc_device *sc, u8 report_id,
 	if (params_size > 62)
 		return -EINVAL;
 
-	report = kmalloc (SC_FEATURE_REPORT_SIZE, GFP_KERNEL);
+	report = kmalloc(SC_FEATURE_REPORT_SIZE, GFP_KERNEL);
 	if (!report)
 		return -ENOMEM;
 
@@ -182,7 +182,7 @@ static int valve_sc_send_request(struct valve_sc_device *sc, u8 report_id,
 	ret = 0;
 
 out:
-	kfree (report);
+	kfree(report);
 	return ret;
 }
 
@@ -196,8 +196,8 @@ static ssize_t valve_sc_show_automouse(struct device *dev,
 }
 
 static ssize_t valve_sc_store_automouse(struct device *dev,
-				        struct device_attribute *attr,
-				        const char *buf, size_t count)
+					struct device_attribute *attr,
+					const char *buf, size_t count)
 {
 	int ret;
 	struct valve_sc_device *sc = dev_get_drvdata(dev);
@@ -253,6 +253,7 @@ static ssize_t valve_sc_store_autobuttons(struct device *dev,
 
 	if (sc->connected) {
 		u8 feature;
+
 		if (sc->autobuttons)
 			feature = SC_FEATURE_ENABLE_AUTO_BUTTONS;
 		else
@@ -323,12 +324,12 @@ static void valve_sc_parse_input_events(struct valve_sc_device *sc,
 	s16 gyro[3] = {0};
 
 	/* Read fields */
-	for (i = 0; i < sizeof (u32); ++i)
+	for (i = 0; i < sizeof(u32); ++i)
 		buttons |= raw_data[SC_OFFSET_BUTTONS+i] << i*8;
 
 	for (axis = 0; axis < 2; ++axis) {
 		triggers[axis] = raw_data[SC_OFFSET_TRIGGERS_8+axis];
-		for (i = 0; i < sizeof (s16); ++i) {
+		for (i = 0; i < sizeof(s16); ++i) {
 			left[axis] |= raw_data[SC_OFFSET_LEFT_AXES+2*axis+i] << i*8;
 			right[axis] |= raw_data[SC_OFFSET_RIGHT_AXES+2*axis+i] << i*8;
 		}
@@ -345,11 +346,11 @@ static void valve_sc_parse_input_events(struct valve_sc_device *sc,
 		if (buttons & SC_BTN_TOUCH_LEFT) {
 			input_report_abs(sc->input, ABS_HAT0X, left[0]);
 			input_report_abs(sc->input, ABS_HAT0Y, -left[1]);
-		}
-		else if (sc->center_touchpads && left[0] == 0 && left[1] == 0) {
+		} else if (sc->center_touchpads && left[0] == 0 && left[1] == 0) {
 			/* Left touch pad release is not detected if the stick
 			 * is not centered at the same time. Since they are used
-			 * with the same finger, it should not happen often. */
+			 * with the same finger, it should not happen often.
+			 */
 			input_report_abs(sc->input, ABS_HAT0X, 0);
 			input_report_abs(sc->input, ABS_HAT0Y, 0);
 		}
@@ -366,8 +367,7 @@ static void valve_sc_parse_input_events(struct valve_sc_device *sc,
 			/* Left events are touchpad events */
 			SC_REPORT_BTN(sc->input, buttons,
 				      SC_BTN_CLICK_LEFT, BTN_THUMBL);
-		}
-		else {
+		} else {
 			/* Left events are stick events */
 			SC_REPORT_BTN(sc->input, buttons,
 				      SC_BTN_CLICK_LEFT, BTN_STICK_CLICK);
@@ -499,7 +499,9 @@ static int valve_sc_update_orientation_setting(struct valve_sc_device *sc)
 static int valve_sc_open_sensor(struct input_dev *dev)
 {
 	struct valve_sc_device *sc = input_get_drvdata(dev);
-	sc->orientation |= SC_SETTINGS_ORIENTATION_ACCEL | SC_SETTINGS_ORIENTATION_GYRO;
+
+	sc->orientation |= SC_SETTINGS_ORIENTATION_ACCEL |
+			   SC_SETTINGS_ORIENTATION_GYRO;
 	valve_sc_update_orientation_setting(sc);
 	return 0;
 }
@@ -507,7 +509,9 @@ static int valve_sc_open_sensor(struct input_dev *dev)
 static void valve_sc_close_sensor(struct input_dev *dev)
 {
 	struct valve_sc_device *sc = input_get_drvdata(dev);
-	sc->orientation &= ~SC_SETTINGS_ORIENTATION_ACCEL & ~SC_SETTINGS_ORIENTATION_GYRO;
+
+	sc->orientation &= ~SC_SETTINGS_ORIENTATION_ACCEL &
+			   ~SC_SETTINGS_ORIENTATION_GYRO;
 	valve_sc_update_orientation_setting(sc);
 }
 
@@ -584,8 +588,7 @@ static int valve_sc_init_device(struct valve_sc_device *sc)
 		hid_warn(hdev, "Error while get controller serial: %d\n", -ret);
 		serial_len = 1;
 		serial[1] = '\0';
-	}
-	else {
+	} else {
 		serial[serial_len] = '\0';
 	}
 
@@ -666,10 +669,10 @@ static void valve_sc_disconnect_work(struct work_struct *work)
 	valve_sc_stop_device(sc);
 }
 
-static int valve_sc_raw_event(struct hid_device *hdev, struct hid_report *report,
-			      u8 *raw_data, int size)
+static int valve_sc_raw_event(struct hid_device *hdev,
+			      struct hid_report *report, u8 *raw_data, int size)
 {
-	struct valve_sc_device *sc = hid_get_drvdata (hdev);
+	struct valve_sc_device *sc = hid_get_drvdata(hdev);
 
 	if (sc->parse_raw_report && size == 64) {
 		switch (raw_data[SC_OFFSET_TYPE]) {
@@ -713,19 +716,18 @@ static int valve_sc_raw_event(struct hid_device *hdev, struct hid_report *report
 	return 0;
 }
 
-static int valve_sc_probe(struct hid_device *hdev, const struct hid_device_id *id)
+static int valve_sc_probe(struct hid_device *hdev,
+			  const struct hid_device_id *id)
 {
 	int ret;
 	struct valve_sc_device *sc;
 	char answer[64];
 	int answer_len;
 
-	sc = devm_kzalloc(&hdev->dev, sizeof (struct valve_sc_device),
-			       GFP_KERNEL);
-	if (!sc) {
-		hid_err (hdev, "cannot alloc driver data\n");
+	sc = devm_kzalloc(&hdev->dev, sizeof(struct valve_sc_device),
+			  GFP_KERNEL);
+	if (!sc)
 		return -ENOMEM;
-	}
 	hid_set_drvdata(hdev, sc);
 
 	sc->hdev = hdev;
@@ -744,7 +746,7 @@ static int valve_sc_probe(struct hid_device *hdev, const struct hid_device_id *i
 	}
 
 	if (hdev->rsize == RAW_REPORT_DESC_SIZE &&
-	    strncmp (hdev->rdesc, raw_report_desc, RAW_REPORT_DESC_SIZE) == 0) {
+	    strncmp(hdev->rdesc, raw_report_desc, RAW_REPORT_DESC_SIZE) == 0) {
 		sc->parse_raw_report = true;
 
 		ret = hid_hw_start(hdev, HID_CONNECT_HIDRAW);
@@ -770,8 +772,8 @@ static int valve_sc_probe(struct hid_device *hdev, const struct hid_device_id *i
 			/* Wireless will be initialized when connected */
 			sc->connected = false;
 			ret = valve_sc_send_request(sc, SC_FEATURE_GET_CONNECTION_STATE,
-						 NULL, 0,
-						 answer, &answer_len);
+						    NULL, 0,
+						    answer, &answer_len);
 			if (ret < 0)
 				hid_warn(hdev, "Error while getting connection state: %d\n", -ret);
 			break;
@@ -780,8 +782,7 @@ static int valve_sc_probe(struct hid_device *hdev, const struct hid_device_id *i
 		ret = sysfs_create_group(&hdev->dev.kobj, &valve_sc_attr_group);
 		if (ret != 0)
 			hid_warn(hdev, "Failed to create sysfs attribute group.\n");
-	}
-	else {
+	} else {
 		/* This is a generic mouse/keyboard interface */
 		ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 		if (ret != 0) {
@@ -795,7 +796,7 @@ static int valve_sc_probe(struct hid_device *hdev, const struct hid_device_id *i
 
 static void valve_sc_remove(struct hid_device *hdev)
 {
-	struct valve_sc_device *sc = hid_get_drvdata (hdev);
+	struct valve_sc_device *sc = hid_get_drvdata(hdev);
 
 	sysfs_remove_group(&hdev->dev.kobj, &valve_sc_attr_group);
 
