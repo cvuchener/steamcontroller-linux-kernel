@@ -28,8 +28,8 @@ Input mappings are:
 | Right Pad            | ABS_HAT1X, ABS_HAT1Y   |
 | Left Trigger         | ABS_BRAKE              |
 | Right Trigger        | ABS_GAS                |
-| Accelerometer (tilt) | ABS_TILT_X, ABS_TILT_Y |
-| Gyroscope            | REL_RX, REL_RY, REL_RZ |
+
+Accelerometer and gyroscope events are sent through a second input device (called "Valve Software Steam Controller Accelerometer") using, respectively, `ABS_X`, `ABS_Y`, `ABS_Z` and `ABS_RX`, `ABS_RY`, `ABS_RZ`. The sensors are only enabled when the input device is opened in order to reduce power consumption.
 
 
 Building
@@ -50,7 +50,7 @@ tee /sys/bus/hid/drivers/hid-generic/unbind <<< "0003:<vendorid>:<productid>:<de
 tee /sys/bus/hid/drivers/valve-sc/bind <<< "0003:<vendorid>:<productid>:<devnum>"
 ```
 
-For a more permanent installation, install the module with `make install` and add the rules in `90-valve-sc-rules` for automatically rebind any Steam Controller.
+For a more permanent installation, install the module with `make install` and add the rules in `90-valve-sc-rules` for automatically rebindind any Steam Controller to the valve-sc driver.
 
 
 Installation with DKMS
@@ -74,6 +74,5 @@ The driver expose some attributes in the sysfs for each device.
 
  - **automouse**: enable or disable the right pad behaving like a mouse. Accepted values are *on* or *off*.
  - **autobuttons**: enable or disable the buttons acting as keys or mouse buttons. Accepted values are *on* or *off*.
- - **orientation**: enable or disable orientation sensors (accelerometer and gyroscope). Accepted values are *on* or *off*.
  - **centertouchpads**: enable or disable centering the touch pads when released (for using them as joysticks). Accepted values are *on* or *off*
 
