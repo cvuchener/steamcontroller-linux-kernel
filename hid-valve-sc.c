@@ -805,6 +805,7 @@ static void valve_sc_remove(struct hid_device *hdev)
 	if (sc->connected)
 		valve_sc_stop_device(sc);
 
+	hid_hw_close(hdev);
 	hid_hw_stop(hdev);
 }
 
