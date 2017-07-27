@@ -126,7 +126,7 @@ static int valve_sc_send_request(struct valve_sc_device *sc, u8 report_id,
 	if (params_size > 62)
 		return -EINVAL;
 
-	report = kmalloc(SC_FEATURE_REPORT_SIZE, GFP_KERNEL);
+	report = kzalloc(SC_FEATURE_REPORT_SIZE, GFP_KERNEL);
 	if (!report)
 		return -ENOMEM;
 
@@ -134,7 +134,6 @@ static int valve_sc_send_request(struct valve_sc_device *sc, u8 report_id,
 	report[1] = report_id;
 	report[2] = params_size;
 	memcpy(&report[3], params, params_size);
-	memset(&report[3+params_size], 0, SC_FEATURE_REPORT_SIZE-params_size-3);
 
 	ret = hid_hw_raw_request(hdev, 0, report, SC_FEATURE_REPORT_SIZE,
 				 HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
