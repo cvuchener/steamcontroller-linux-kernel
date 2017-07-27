@@ -716,13 +716,43 @@ static int valve_sc_raw_event(struct hid_device *hdev,
 	return 0;
 }
 
+static int valve_sc_init_wireless(struct valve_sc_device *sc)
+{
+	int ret;
+	char answer[64];
+	int answer_len;
+
+	ret = valve_sc_send_request(sc, SC_FEATURE_GET_CONNECTION_STATE,
+				    NULL, 0,
+				    answer, &answer_len);
+	if (ret < 0) {
+		hid_warn(sc->hdev, "Error while getting connection state: %d\n", -ret);
+		return ret;
+	}
+
+	if (answer_len != 1) {
+		hid_warn(sc->hdev, "unexpected answer length: %d\n", answer_len);
+		return -EIO;
+	}
+
+	switch (answer[0]) {
+	case 0x01: /* device is disconnected */
+		return 0;
+	case 0x02: /* device is connected */
+		sc->connected = true;
+		valve_sc_init_device(sc);
+		return 0;
+	default:
+		hid_warn(sc->hdev, "Invalid connection state\n");
+		return -EIO;
+	}
+}
+
 static int valve_sc_probe(struct hid_device *hdev,
 			  const struct hid_device_id *id)
 {
 	int ret;
 	struct valve_sc_device *sc;
-	char answer[64];
-	int answer_len;
 
 	sc = devm_kzalloc(&hdev->dev, sizeof(struct valve_sc_device),
 			  GFP_KERNEL);
@@ -770,30 +800,8 @@ static int valve_sc_probe(struct hid_device *hdev,
 
 		case USB_DEVICE_ID_STEAM_CONTROLLER_RECEIVER:
 			/* Wireless will be initialized when connected */
-			ret = valve_sc_send_request(sc, SC_FEATURE_GET_CONNECTION_STATE,
-						    NULL, 0,
-						    answer, &answer_len);
-			if (ret < 0) {
-				hid_warn(hdev, "Error while getting connection state: %d\n", -ret);
-				break;
-			}
-			if (answer_len != 1) {
-				hid_warn(hdev, "Invalid get connection state answer length: %d\n", answer_len);
-				break;
-			}
-			switch (answer[0]) {
-			case 0x01: /* device is disconnected */
-				sc->connected = false;
-				break;
-			case 0x02: /* device is connected */
-				sc->connected = true;
-				valve_sc_init_device(sc);
-				break;
-			default:
-				hid_warn(hdev, "Invalid connection state during probe.\n");
-				sc->connected = false;
-				break;
-			}
+			sc->connected = false;
+			valve_sc_init_wireless(sc);
 			break;
 		}
 
