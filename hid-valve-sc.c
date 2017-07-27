@@ -770,12 +770,30 @@ static int valve_sc_probe(struct hid_device *hdev,
 
 		case USB_DEVICE_ID_STEAM_CONTROLLER_RECEIVER:
 			/* Wireless will be initialized when connected */
-			sc->connected = false;
 			ret = valve_sc_send_request(sc, SC_FEATURE_GET_CONNECTION_STATE,
 						    NULL, 0,
 						    answer, &answer_len);
-			if (ret < 0)
+			if (ret < 0) {
 				hid_warn(hdev, "Error while getting connection state: %d\n", -ret);
+				break;
+			}
+			if (answer_len != 1) {
+				hid_warn(hdev, "Invalid get connection state answer length: %d\n", answer_len);
+				break;
+			}
+			switch (answer[0]) {
+			case 0x01: /* device is disconnected */
+				sc->connected = false;
+				break;
+			case 0x02: /* device is connected */
+				sc->connected = true;
+				valve_sc_init_device(sc);
+				break;
+			default:
+				hid_warn(hdev, "Invalid connection state during probe.\n");
+				sc->connected = false;
+				break;
+			}
 			break;
 		}
 
