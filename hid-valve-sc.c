@@ -85,6 +85,7 @@ static const u8 raw_report_desc[RAW_REPORT_DESC_SIZE] = {
 #define SC_FEATURE_DISABLE_AUTO_BUTTONS	0x81
 #define SC_FEATURE_ENABLE_AUTO_BUTTONS	0x85
 #define SC_FEATURE_SETTINGS	0x87
+#define SC_FEATURE_HAPTIC	0x8f
 #define SC_FEATURE_GET_SERIAL	0xae
 #define SC_FEATURE_GET_CONNECTION_STATE	0xb4
 
@@ -98,7 +99,18 @@ static const u8 raw_report_desc[RAW_REPORT_DESC_SIZE] = {
 #define SC_SETTINGS_ORIENTATION_Q	0x08
 #define SC_SETTINGS_ORIENTATION_GYRO	0x10
 
+#define SC_HAPTIC_RIGHT	0
+#define SC_HAPTIC_LEFT	1
+
 #define SC_ACCEL_RES_PER_G	0x4000
+
+#define SC_RUMBLE_PERIOD	10000
+
+struct valve_sc_haptic_params {
+	u16 left, right;
+	u16 period;
+	u16 count;
+};
 
 struct valve_sc_device {
 	struct hid_device *hdev;
@@ -110,8 +122,10 @@ struct valve_sc_device {
 	bool automouse;
 	bool autobuttons;
 	u8 orientation;
+	struct valve_sc_haptic_params haptic;
 	struct work_struct connect_work;
 	struct work_struct disconnect_work;
+	struct work_struct haptic_work;
 	char *uniq;
 };
 
@@ -406,6 +420,53 @@ static void valve_sc_parse_input_events(struct valve_sc_device *sc,
 	}
 }
 
+static int valve_sc_play_effect(struct input_dev *dev, void *data,
+				struct ff_effect *effect)
+{
+	struct valve_sc_device *sc = input_get_drvdata(dev);
+
+	if (effect->type != FF_RUMBLE)
+		return 0;
+
+	sc->haptic.left = effect->u.rumble.strong_magnitude;
+	sc->haptic.right = effect->u.rumble.weak_magnitude;
+	sc->haptic.period = SC_RUMBLE_PERIOD;
+	if (sc->haptic.left > 0 || sc->haptic.right > 0)
+		sc->haptic.count = 0xffff;
+	else
+		sc->haptic.count = 0;
+	schedule_work(&sc->haptic_work);
+	return 0;
+}
+
+static int valve_sc_haptic_effect(struct valve_sc_device *sc, u8 actuator,
+				  u16 amplitude, u16 period, u16 count)
+{
+	u8 params[7];
+
+	params[0] = actuator;
+	params[1] = amplitude & 0xff;
+	params[2] = amplitude >> 8;
+	params[3] = period & 0xff;
+	params[4] = period >> 8;
+	params[5] = count & 0xff;
+	params[6] = count >> 8;
+	return valve_sc_send_request(sc, SC_FEATURE_HAPTIC,
+				     params, sizeof(params),
+				     NULL, NULL);
+}
+
+static void valve_sc_haptic_work(struct work_struct *work)
+{
+	struct valve_sc_device *sc = container_of(work, struct valve_sc_device,
+						  haptic_work);
+
+	valve_sc_haptic_effect(sc, SC_HAPTIC_LEFT, sc->haptic.left,
+			       sc->haptic.period, sc->haptic.count);
+	valve_sc_haptic_effect(sc, SC_HAPTIC_RIGHT, sc->haptic.right,
+			       sc->haptic.period, sc->haptic.count);
+}
+
 static int valve_sc_init_input(struct valve_sc_device *sc)
 {
 	int ret;
@@ -417,6 +478,7 @@ static int valve_sc_init_input(struct valve_sc_device *sc)
 		return -ENOMEM;
 	}
 
+	input_set_drvdata(sc->input, sc);
 	sc->input->dev.parent = &hdev->dev;
 	sc->input->id.bustype = hdev->bus;
 	sc->input->id.vendor = hdev->vendor;
@@ -465,15 +527,25 @@ static int valve_sc_init_input(struct valve_sc_device *sc)
 	input_set_abs_params(sc->input, ABS_HAT2X, 0, 255, 2, 1);
 	input_set_abs_params(sc->input, ABS_HAT2Y, 0, 255, 2, 1);
 
+	/* emulate rumble using touchpad haptics */
+	set_bit(FF_RUMBLE, sc->input->ffbit);
+	ret = input_ff_create_memless(sc->input, NULL, valve_sc_play_effect);
+	if (ret != 0) {
+		hid_err(hdev, "Failed to create ff memless: %d.\n", -ret);
+		goto error;
+	}
+
 	ret = input_register_device(sc->input);
 	if (ret != 0) {
 		hid_err(hdev, "Failed to register input device: %d.\n", -ret);
-		input_free_device(sc->input);
-		sc->input = NULL;
-		return ret;
+		goto error;
 	}
 
 	return 0;
+error:
+	input_free_device(sc->input);
+	sc->input = NULL;
+	return ret;
 }
 
 static int valve_sc_update_orientation_setting(struct valve_sc_device *sc)
@@ -768,6 +840,7 @@ static int valve_sc_probe(struct hid_device *hdev,
 
 	INIT_WORK(&sc->connect_work, valve_sc_connect_work);
 	INIT_WORK(&sc->disconnect_work, valve_sc_disconnect_work);
+	INIT_WORK(&sc->haptic_work, valve_sc_haptic_work);
 
 	ret = hid_parse(hdev);
 	if (ret != 0) {
@@ -828,6 +901,7 @@ static void valve_sc_remove(struct hid_device *hdev)
 
 	cancel_work_sync(&sc->connect_work);
 	cancel_work_sync(&sc->disconnect_work);
+	cancel_work_sync(&sc->haptic_work);
 
 	if (sc->connected)
 		valve_sc_stop_device(sc);
